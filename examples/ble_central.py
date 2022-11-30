@@ -26,8 +26,10 @@ for i in list(range(3)):
     central.prepare(
         BTLE_DATA()/L2CAP_Hdr()/ATT_Hdr()/ATT_Read_Request(gatt_handle=3),
         # RAND and EDIV are obtained after pairing with the `run_pairing.sh` script.
-        # TODO Why MD=1 is set for LL_ENC_REQ but not for ATT_Read_Request?
-        BTLE_DATA(MD=1)/BTLE_CTRL()/LL_ENC_REQ(rand=0x26e9429fd727c6f3, ediv=0x6c51, skdm=0xf3681496c43831bb, ivm=0x99e664e3),
+        # Set MD=1 here to force READ_RSP on the same connection event as
+        # ENC_RSP, excepting READ_RSP during AES processing. Do not set MD=1
+        # before, otherwise connection event will be separated.
+        BTLE_DATA(MD=1)/BTLE_CTRL()/LL_ENC_REQ(rand=0xb84dc0a56a56e366, ediv=0xd117, skdm=0xf3681496c43831bb, ivm=0x99e664e3),
         trigger=trigger_read_enc
     )
 
