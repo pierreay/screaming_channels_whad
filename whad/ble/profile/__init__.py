@@ -512,7 +512,6 @@ class GenericProfile(object):
                 for operation in prop_obj.hooks:
                     self.__hooks[prop_obj.characteristic][operation] = prop_obj
 
-
     def __alloc_handle(self, number=1):
         """Allocate one or more handle values.
 
