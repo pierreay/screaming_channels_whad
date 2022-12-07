@@ -3,7 +3,7 @@ from whad.ble.profile import UUID
 from whad.ble.stack.llm import ENC_RSP
 from whad.device import WhadDevice
 from time import sleep, time
-from scapy.all import BTLE_DATA, ATT_Hdr, L2CAP_Hdr, ATT_Read_Request, ATT_Write_Request, ATT_Error_Response, BTLE_EMPTY_PDU, BTLE_CTRL, LL_ENC_REQ
+from scapy.all import BTLE_DATA, BTLE_ADV, ATT_Hdr, L2CAP_Hdr, ATT_Read_Request, ATT_Write_Request, ATT_Error_Response, BTLE_EMPTY_PDU, BTLE_CTRL, LL_ENC_REQ
 
 TIME_START                  = 0
 TIME_END                    = 0
@@ -25,6 +25,8 @@ TIME_START = time()
 print("Create central from uart0")
 central = Central(WhadDevice.create('uart0'))
 central.attach_callback(count_ll_enc_rsp, on_reception=True, filter=lambda pkt:True)
+# Show received packets that are not advertising or empty. */
+central.attach_callback(lambda pkt:pkt.show(), on_reception=True, filter=lambda pkt:pkt.haslayer(BTLE_ADV) == 0 and pkt.getlayer(BTLE_DATA).len)
 
 # Require a defined number of encryption response that simulate multiple traces collection.
 while LL_ENC_RSP_COUNT < 10:
