@@ -251,7 +251,8 @@ class BleConnection(object):
     def on_enc_rsp(self, enc_rsp):
         """Encryption not supported yet
         """
-        self.on_unsupported_opcode(ENC_RSP)
+        # self.on_unsupported_opcode(ENC_RSP)
+        pass
 
     def on_start_enc_req(self, start_enc_req):
         """Encryption not supported yet
