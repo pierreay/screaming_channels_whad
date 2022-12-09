@@ -3,7 +3,7 @@ from whad.ble.profile import UUID
 from whad.ble.stack.llm import ENC_RSP
 from whad.device import WhadDevice
 from time import sleep, time
-from scapy.all import BTLE_DATA, BTLE_ADV, ATT_Hdr, L2CAP_Hdr, ATT_Read_Request, ATT_Write_Request, ATT_Error_Response, BTLE_EMPTY_PDU, BTLE_CTRL, LL_ENC_REQ
+from scapy.all import BTLE_DATA, BTLE_ADV, ATT_Hdr, L2CAP_Hdr, ATT_Read_Request, ATT_Write_Request, ATT_Error_Response, BTLE_EMPTY_PDU, BTLE_CTRL, LL_ENC_REQ, LL_ENC_RSP, LL_START_ENC_REQ
 
 TIME_START                  = 0
 TIME_END                    = 0
@@ -24,23 +24,28 @@ def count_ll_enc_rsp(packet):
 TIME_START = time()
 print("Create central from uart0")
 central = Central(WhadDevice.create('uart0'))
+# This has to be set to the Bluetooth adress of the HCI device used to
+# establish the pairing, since the tuple used for LTK identification is
+# (BD_ADDR, EDIV, RAND).
+central.set_bd_address("00:19:0E:19:79:D8")
 central.attach_callback(count_ll_enc_rsp, on_reception=True, filter=lambda pkt:True)
 # Show received packets that are not advertising or empty. */
 central.attach_callback(lambda pkt:pkt.show(), on_reception=True, filter=lambda pkt:pkt.haslayer(BTLE_ADV) == 0 and pkt.getlayer(BTLE_DATA).len)
 
 # Require a defined number of encryption response that simulate multiple traces collection.
-while LL_ENC_RSP_COUNT < 10:
+while LL_ENC_RSP_COUNT < 1:
     # Create triggers.
-    radio_trigger = ConnectionEventTrigger(10)
+    radio_trigger = ConnectionEventTrigger(1)
     radio_state = False
     # Send an empty packet, the goal here is just to inform the radio thread
     # that it has to turn ON the recording at a precise connection event.
     central.prepare(
-        BTLE_DATA()/BTLE_EMPTY_PDU(),
+        BTLE_DATA() / BTLE_EMPTY_PDU(),
         trigger=radio_trigger
     )
-    read_enc_trigger = ConnectionEventTrigger(20)
+    read_enc_trigger = ConnectionEventTrigger(3)
     read_enc_state = False
+    # TODO Documentation has to be rewritten.
     # 1. RAND and EDIV are obtained after pairing with the `run_pairing.sh` script.
     # 2. SKDM and IVM are obtained after sniffing during pairing with the `whadsniff` utility.
     # 3. Theoretically, only EDIV is necessary to identify the LTK on the
@@ -49,9 +54,20 @@ while LL_ENC_RSP_COUNT < 10:
     # ENC_RSP, excepting READ_RSP during AES processing. Do not set MD=1
     # before, otherwise connection event will be separated.
     central.prepare(
-        BTLE_DATA()/L2CAP_Hdr()/ATT_Hdr()/ATT_Read_Request(gatt_handle=3),
-        BTLE_DATA(MD=1)/BTLE_CTRL()/LL_ENC_REQ(rand=0xb84dc0a56a56e366, ediv=0xd117, skdm=0xf3681496c43831bb, ivm=0x99e664e3),
+        #BTLE_DATA() / L2CAP_Hdr() / ATT_Hdr() / ATT_Read_Request(gatt_handle=3),
+        #BTLE_DATA(MD=1) / BTLE_CTRL() / LL_ENC_REQ(rand=0x57d757a950579105, ediv=0x7e92, skdm=0xf3681496c43831bb, ivm=0x99e664e3),
+        BTLE_DATA() / BTLE_CTRL() / LL_ENC_REQ(rand=0x57d757a950579105, ediv=0x7e92, skdm=0xf3681496c43831bb, ivm=0x99e664e3),
         trigger=read_enc_trigger
+    )
+    # Triggered when receiveing a LL_ENC_RSP packet.
+    start_enc_trigger = ReceptionTrigger(
+        packet=BTLE_DATA() / BTLE_CTRL() / LL_ENC_RSP(),
+        selected_fields=("opcode")
+    )
+    # Send a LL_START_ENC_REQ.
+    central.prepare(
+        BTLE_DATA() / BTLE_CTRL() / LL_START_ENC_REQ(),
+        trigger=start_enc_trigger
     )
 
     # Connect to the peripheral.
@@ -75,7 +91,7 @@ while LL_ENC_RSP_COUNT < 10:
             print("[ENC_REQ SEND]")
         # Step 3: Disconnect.
         if radio_state and read_enc_state:
-            sleep(0.2) # Wait for ENC_RSP.
+            sleep(1) # Wait for ENC_RSP.
             device.disconnect()
             print("[RADIO OFF]")
             break    # Either: 1) Wait for disconnect ; 2) Break out of the
