@@ -24,7 +24,7 @@ central.set_bd_address("00:19:0E:19:79:D8")
 # central.attach_callback(lambda pkt:pkt.show(), on_transmission=False, on_reception=True, filter=lambda pkt:BTLE_CTRL in pkt and pkt.opcode == START_ENC_REQ)
 
 # Require a defined number of encryption response that simulate multiple traces collection.
-while LL_START_ENC_REQ_CNT < 1:
+while LL_START_ENC_REQ_CNT < 100:
     # At connection event #5, send an empty packet. The goal here is just to
     # inform the radio thread that it has to turn ON the recording at a precise
     # connection event.
