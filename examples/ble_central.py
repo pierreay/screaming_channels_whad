@@ -1,6 +1,6 @@
 from whad.ble import Central, ConnectionEventTrigger, ReceptionTrigger
 from whad.ble.profile import UUID
-from whad.ble.stack.llm import START_ENC_REQ
+from whad.ble.stack.llm import START_ENC_REQ, REJECT_IND
 from whad.device import WhadDevice
 from time import sleep, time
 from scapy.all import BTLE_DATA, BTLE_ADV, ATT_Hdr, L2CAP_Hdr, ATT_Read_Request, BTLE_EMPTY_PDU, BTLE_CTRL, LL_ENC_REQ, LL_START_ENC_REQ
@@ -22,6 +22,9 @@ central.set_bd_address("00:19:0E:19:79:D8")
 # central.attach_callback(lambda pkt:pkt.show(), on_transmission=False, on_reception=True, filter=lambda pkt:pkt.haslayer(BTLE_ADV) == 0 and pkt.getlayer(BTLE_DATA).len)
 # Show received packets that are START_ENC_REQ. */
 # central.attach_callback(lambda pkt:pkt.show(), on_transmission=False, on_reception=True, filter=lambda pkt:BTLE_CTRL in pkt and pkt.opcode == START_ENC_REQ)
+# Raise an error if a REJECT_IND is received, meaning that EDIV/RAND/BD_ADDR
+# aren't correct and that legitimate connection sniffing needs to be redone.
+central.attach_callback(lambda pkt:print("[ERROR] LL_REJECT_IND received!"), on_transmission=False, on_reception=True, filter=lambda pkt:BTLE_CTRL in pkt and pkt.opcode == REJECT_IND)
 
 # Require a defined number of encryption response that simulate multiple traces collection.
 while LL_START_ENC_REQ_CNT < 100:
