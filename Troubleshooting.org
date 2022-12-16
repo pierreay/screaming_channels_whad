@@ -1,0 +1,65 @@
+* Methods
+
+** Add debug to WHAD device's messages
+
+#+BEGIN_SRC diff
+diff --git c/whad/device/__init__.py i/whad/device/__init__.py
+index a728d25..c443a67 100644
+--- c/whad/device/__init__.py
++++ i/whad/device/__init__.py
+@@ -697,6 +697,7 @@ class WhadDevice(object):
+         :param Message message: Message to send
+         :param keep: Message queue filter function
+         """
++        print(message)
+         logger.info('sending message %s to device' % message)
+         # if `keep` is set, configure queue filter
+         self.set_queue_filter(keep)
+@@ -765,5 +766,6 @@ class WhadDevice(object):
+                         _msg.ParseFromString(bytes(raw_message))
+                         logger.debug('WHAD message successfully parsed')
+                         self.on_message_received(_msg)
++                        print(_msg)
+                         # Chomp
+                         self.__inpipe = self.__inpipe[msg_size + 4:]
+                     else:
+#+END_SRC
+
+* Errors
+
+** Hang during device discovery
+
+#+BEGIN_EXAMPLE
+$ python3 examples/ble_central.py
+Create central from uart0
+discovery {
+  reset_query {
+  }
+}
+
+^CTraceback (most recent call last):
+  File "/home/pierre/work/tech/whad-client/examples/ble_central.py", line 16, in <module>
+    central = Central(WhadDevice.create('uart0'))
+  File "/home/pierre/work/tech/whad-client/whad/ble/connector/central.py", line 25, in __init__
+    super().__init__(device)
+  File "/home/pierre/work/tech/whad-client/whad/ble/connector/__init__.py", line 86, in __init__
+    self.device.open()
+  File "/home/pierre/work/tech/whad-client/whad/device/uart.py", line 125, in open
+    super().open()
+  File "/home/pierre/work/tech/whad-client/whad/device/__init__.py", line 612, in open
+    self.reset()
+  File "/home/pierre/work/tech/whad-client/whad/device/uart.py", line 162, in reset
+    self.send_command(
+  File "/home/pierre/work/tech/whad-client/whad/device/__init__.py", line 742, in send_command
+    return self.wait_for_message()
+  File "/home/pierre/work/tech/whad-client/whad/device/__init__.py", line 682, in wait_for_message
+    msg = self.__msg_queue.get(block=True, timeout=timeout)
+  File "/usr/lib/python3.10/queue.py", line 171, in get
+    self.not_empty.wait()
+  File "/usr/lib/python3.10/threading.py", line 320, in wait
+    waiter.acquire()
+KeyboardInterrupt
+#+END_EXAMPLE
+
+- Cause :: Protocol version between WHAD and Butterfly mismatch.
+- Solution :: Pull WHAD & Butterfly repositories, compile and flash new version of Butterfly.
