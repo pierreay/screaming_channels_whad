@@ -1,3 +1,4 @@
+import sys
 from whad.ble import Central, ConnectionEventTrigger, ReceptionTrigger
 from whad.ble.profile import UUID
 from whad.ble.stack.llm import START_ENC_REQ, REJECT_IND
@@ -26,8 +27,12 @@ central.set_bd_address("B8:8A:60:F9:FD:5C")
 # aren't correct and that legitimate connection sniffing needs to be redone.
 central.attach_callback(lambda pkt:print("[ERROR] LL_REJECT_IND received!"), on_transmission=False, on_reception=True, filter=lambda pkt:BTLE_CTRL in pkt and pkt.opcode == REJECT_IND)
 
+LL_START_ENC_REQ_CNT_TARGET = 1
+if len(sys.argv) >= 2:
+    LL_START_ENC_REQ_CNT_TARGET = int(sys.argv[1])
+
 # Require a defined number of encryption response that simulate multiple traces collection.
-while LL_START_ENC_REQ_CNT < 100:
+while LL_START_ENC_REQ_CNT < LL_START_ENC_REQ_CNT_TARGET:
     # At connection event #5, send an empty packet. The goal here is just to
     # inform the radio thread that it has to turn ON the recording at a precise
     # connection event.
