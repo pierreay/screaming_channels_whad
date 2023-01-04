@@ -18,7 +18,8 @@ central = Central(WhadDevice.create('uart0'))
 # This has to be set to the Bluetooth adress of the HCI device used to
 # establish the pairing, since the tuple used for LTK identification is
 # (BD_ADDR, EDIV, RAND).
-central.set_bd_address("B8:8A:60:F9:FD:5C")
+# central.set_bd_address("B8:8A:60:F9:FD:5C") # Laptop address.
+central.set_bd_address("00:19:0E:19:79:D8")   # HCI dongle address.
 # Show received packets that are not advertising or empty. */
 # central.attach_callback(lambda pkt:pkt.show(), on_transmission=False, on_reception=True, filter=lambda pkt:pkt.haslayer(BTLE_ADV) == 0 and pkt.getlayer(BTLE_DATA).len)
 # Show received packets that are START_ENC_REQ. */
