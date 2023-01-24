@@ -82,6 +82,7 @@ while LL_START_ENC_REQ_CNT < LL_START_ENC_REQ_CNT_TARGET:
     # (hence, different connection event). Would it be better to do so?
     # 2. Set channel map to 0x300 which corresponds to channel 8-9.
     device = central.connect('F4:9E:F2:6D:37:85', random=False, hop_interval=56, channel_map=0x00000300)
+    print("HCI_CREATE_CONNECTION_CNT={}".format(HCI_CREATE_CONNECTION_CNT))
     HCI_CREATE_CONNECTION_CNT += 1
     # Connection can be lost because of firmware bugs, interferances, or because
     # our packets are not legitimate. If so, just retry a connect.
@@ -99,6 +100,7 @@ while LL_START_ENC_REQ_CNT < LL_START_ENC_REQ_CNT_TARGET:
             print("[LL_START_ENC_REQ RECEIVED]")
             ll_start_enc_req_state = True
             LL_START_ENC_REQ_CNT += 1
+            print("LL_START_ENC_REQ_CNT={}".format(LL_START_ENC_REQ_CNT))
         # Step 4: Disconnect.
         if ll_start_enc_req_state:
             print("[RADIO OFF]")
