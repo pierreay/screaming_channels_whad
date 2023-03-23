@@ -1,5 +1,6 @@
 # Emacs local.
 .dir-locals.el
+Makefile.emacs
 last.sh
 
 # Byte-compiled / optimized / DLL files
