@@ -249,9 +249,12 @@ class BleConnection(object):
             )
 
     def on_enc_rsp(self, enc_rsp):
-        """Encryption not supported yet
-        """
-        # self.on_unsupported_opcode(ENC_RSP)
+        """Encryption not supported yet"""
+        skds_path = "/tmp/whad_skds"
+        # print("[WHAD] [ble/stack/llm/__init__.py] Received SKD_S on LL_ENC_RSP: enc_rsp.skds: raw={} hexlify_pack_<Q={}".format(enc_rsp.skds, hexlify(pack('<Q', enc_rsp.skds))))
+        # print("[WHAD] [ble/stack/llm/__init__.py] Write {}".format(skds_path))
+        with open(skds_path, mode="w") as f:
+            f.write("{}\n".format(enc_rsp.skds))
         pass
 
     def on_start_enc_req(self, start_enc_req):
