@@ -1,9 +1,21 @@
-# WHAD library
+# Screaming Channels on Bluetooth Low Energy -- WHAD
+
+## About
+
+Companion repository of the "Screaming Channels on Bluetooth Low Energy"
+project.
+
+See the [screaming_channels_ble](https://github.com/pierreay/screaming_channels_ble)
+repository for a complete overview of the project.
+
+# Original README
+
+## WHAD library
 [![Tests](https://github.com/virtualabs/whad-client/actions/workflows/tests.yml/badge.svg)](https://github.com/virtualabs/whad-client/actions/workflows/tests.yml)
 
 This repository contains a python library allowing to easily interact with offensive hardware tools implementing the WHAD (Wireless HAcking Devices).
 
-## Repository structure
+### Repository structure
 
 The project is structured as follow:
 
@@ -30,7 +42,7 @@ The project is structured as follow:
 └── whadup.py                         # utility allowing to display WHAD capabilities implemented by a specific device
 ```
 
-## Required dependencies
+### Required dependencies
 
 The following dependencies are needed to use this package:
 - protobuf (>=3.19.0,<=3.20.1)
@@ -44,7 +56,7 @@ If you want to run the tests, you also need to install the following dependencie
 - pytest (>=6.2.5)
 - pytest-cov (>=2.12.1)
 
-## Running unit tests
+### Running unit tests
 
 You can run unit tests locally for the default python version using:
 ```
@@ -59,7 +71,7 @@ tox
 (Obviously, you need to install python interpreter from 3.6 to 3.10 included to run tox).
 The tests are automatically run by github actions when something is pushed to main branch or when a pull request is merged.
 
-## Installing the package
+### Installing the package
 
 You can install the package easily using:
 ```
@@ -111,15 +123,15 @@ This device supports ZigBee:
 [i] Device ID: c2:b8:c2:aa:c2:b4:35:09:4f:7e:c3:b5:c3:aa:2a:31:16:66:2f:35:67
 ```
 
-## Running basic examples
+### Running basic examples
 
-### Sniffing Bluetooth Low Energy advertisements
+#### Sniffing Bluetooth Low Energy advertisements
 If your device supports BLE advertisements sniffing, you can sniff advertisements by running the following command:
 ```
 python3 examples/ble_advertisements_sniffer.py /dev/ttyACM0
 ```
 
-### Sniffing Bluetooth Low Energy connections
+#### Sniffing Bluetooth Low Energy connections
 If your device supports BLE connections sniffing, you can sniff connections by running the following command:
 ```
 python3 examples/ble_connection_sniffer.py /dev/ttyACM0
